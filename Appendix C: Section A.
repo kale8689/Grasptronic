@@ -1,0 +1,14 @@
+// Example code for LED illumination for material recognition
+if (material = =  “metal_needle”){
+digitalWrite(blue_light, HIGH);
+digitalWrite(white_light, LOW);
+}
+else if (material == “suture_mesh_tissue”){
+digitalWrite(white_light, HIGH);
+digitalWrite(blue_light, LOW);
+}
+else {
+digitalWrite(blue_light, LOW);
+digitalWrite(white_light, LOW);
+}
+
