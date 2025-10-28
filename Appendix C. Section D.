@@ -1,0 +1,43 @@
+/// software video code
+#include <Servo.h>
+Servo servoMotor;
+int potPos;
+int green_light = 3;
+int blue_light = 4;
+int white_light = 5;
+int red_light = 6;
+int switchPin = 7;
+int switch_state = LOW;
+void setup() {
+  servoMotor.attach(2);
+  pinMode(green_light, OUTPUT);
+  pinMode(blue_light, OUTPUT);
+  pinMode(white_light, OUTPUT);
+  pinMode(red_light, OUTPUT);
+  pinMode(switchPin, INPUT);}
+
+void loop () {
+  //Map the whether the switch is flipped on or off to switch state
+  switch_state = digitalRead(switchPin);
+  
+ //Adjust servo position based on potentiometer location
+ //If switch flipped on then position of motor limited to 0-120
+ if (switch_state == HIGH){
+    digitalWrite(green_light, HIGH);
+    digitalWrite(red_light, LOW);
+   	potPos = map(analogRead(A0), 0, 1023, 0, 120);
+   	servoMotor.write(potPos);
+  	delay(15);}
+ else {
+   	digitalWrite(red_light, HIGH);
+    digitalWrite(green_light, LOW);
+   	potPos = map(analogRead(A0), 0, 1023, 0, 180);
+  	servoMotor.write(potPos);
+  	delay(15);}
+  
+ //Turn on white LED when potentiometer between 0-1/2 turned
+  if(potPos <= 90){ digitalWrite(white_light, HIGH);}
+  else { digitalWrite(white_light, LOW);}
+ //Turn on green LED when potentiometer between 1/2-1 turned
+  if(potPos > 90){digitalWrite(blue_light, HIGH);}
+  else {digitalWrite(blue_light, LOW)
