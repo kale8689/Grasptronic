@@ -1,0 +1,13 @@
+// Example code for LED illumination for mode designation
+if (switch_state = LOW)
+{
+program_AGFM(); 
+digitalWrite(green_light, HIGH);
+digitalWrite(red_light, LOW); 
+// AGFM = Automatic Grasping Force Mode}
+else if (switch_state = HIGH)
+{
+program_UM(); 
+digitalWrite(red_light, HIGH);
+digitalWrite(green_light, LOW); 
+// UM = Unlimited Mode}
