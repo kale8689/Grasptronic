@@ -2,7 +2,7 @@
 if (impedance > 0.000000550 ohms && impedance <= 1 ohm){
  	material = metal_needle
   }
-else {
+else if (impedance > 1 ohms && impedance < 15k ohms) {
 material = suture_mesh_tissue
         }
 
