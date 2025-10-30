@@ -1,3 +1,4 @@
+// Example code for LED illumination for mode designation
 if (switch_state = LOW)
 {
 program_AGFM(); 
