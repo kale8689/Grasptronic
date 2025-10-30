@@ -1,6 +1,6 @@
 char material;
 float impedance;
-
+// switch statement cannot be used for ranges of values so if/else if used instead
 
 if (impedance > 0.000000550 && impedance <= 1 ){
  	material = "metal_needle"
