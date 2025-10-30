@@ -1,4 +1,4 @@
-// Example code for material recognition and designation:
+// Example code for material recognition:
 if (impedance > 0.000000550 ohms && impedance <= 1 ohm){
  	material = metal_needle
   }
