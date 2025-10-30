@@ -1,7 +1,7 @@
 // Example code for Force Limitation:
 // stepper_motor_decrease would be a function that directs the stepper motor to open the needle driver jaws. This function has pseduo-code of possible functionality. 
 if (force > x){
-// when force is outside tissue/suture/mesh threshold of 1.5 - 2.5 N
-// when force is outside metal needles threshold of 3.46 - 4.46 N
+// when force is greater than 1.5 - 2.5 N for tissue/suture/mesh
+// when force is greater than 3.46 - 4.46 N for metal needles 
 stepper_motor_decrease;
 }
