@@ -1,3 +1,4 @@
+// Example code for LED illumination for material recognition
 if (material = =  “metal_needle”){
 digitalWrite(blue_light, HIGH);
 digitalWrite(white_light, LOW);
