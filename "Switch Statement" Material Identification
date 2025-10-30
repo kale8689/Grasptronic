@@ -26,5 +26,15 @@ switch(material){
     // Jaws limited to threshold force for metal needles
     break;
 
+  case "suture":
+    // Jaws limited to threshold force for suture
+    break;
 
+  case "mesh":
+    // Jaws limited to threshold force for mesh
+    break;
+
+  case "tissue":
+    // Jaws limited to threshold force for tissue
+    break;
 }
