@@ -1,3 +1,30 @@
-int impedance_reading;
+char material;
+float impedance;
 
-switch(im
+
+if (impedance > 0.000000550 && impedance <= 1 ){
+ 	material = "metal_needle"
+  }
+
+// x1 and x2 would be range of impedance values of saline soaked suture
+else if (impedance > x1 && impedance <= x2) {
+material = "suture"
+        }
+
+// x3 and x4 would be range of impedance values of saline soaked mesh
+else if (impedance > x3 && impedance <= x4) {
+material = "mesh"
+        }
+
+// x5 and x6 would be range of impedance values of tissue
+else if (impedance > x5 && impedance <= x6) {
+material = "tissue"
+        }
+
+switch(material){
+  case "metal_needle":
+    // Jaws limited to threshold force for metal needles
+    break;
+
+
+}
