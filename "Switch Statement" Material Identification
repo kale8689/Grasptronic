@@ -20,7 +20,7 @@ material = "mesh"
 else if (impedance > x5 && impedance <= x6) {
 material = "tissue"
         }
-// identifies the material through a switch statement after impedance testing, then adjusts force based off material.
+// identifies the material through a if/else if statements, then switch statement utilized to limit force for each unique material class
 switch(material){
   case "metal_needle":
     // Jaws limited to threshold force for metal needles
