@@ -1,0 +1,16 @@
+void setup() {    
+  // initialize variables           
+  pinMode(16, OUTPUT); //STEP
+  pinMode(17, OUTPUT); //DIR
+  digitalWrite(16, LOW);
+  digitalWrite(17, LOW); // LOW = ccw
+}
+
+void loop() {
+  // step start motor
+  digitalWrite(16, HIGH);
+  delay(1); // adjust for speed (smaller = faster) like delayMicroseconds(200); 
+  // step stop motor      
+  digitalWrite(16, LOW);
+  delay(1);        
+}
