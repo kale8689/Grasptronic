@@ -4,9 +4,9 @@
 
 // Configuration
 const int stepsPerRevolution = 100;
-const int maxSteps = 1200;        // Maximum steps from center position
-const int deadZone = 100;        // Dead zone around center (ADC units)
-const int stepDelay = 500;       // Microseconds between steps (speed control)
+const int maxSteps = 1800;        // Change this to increase angle the motor turns. Maximum steps from center position
+const int deadZone = 200;        // Far CCW is where the dead zone is. Dead zone around center (ADC units) 
+const int stepDelay = 400;       // Change speed. Microseconds between steps (speed control)
 
 int currentPos = 0;              // Current motor position
 int targetPos = 0;               // Target position from pot
@@ -23,7 +23,7 @@ void loop() {
 int position = analogRead(pot_Pin);
 // Map pot to position range: -maxSteps to +maxSteps
   // Center position (~2048) = 0 steps
-  targetPos = map(position, 0, 4095, -maxSteps, maxSteps);
+  targetPos = map(position, 0, 4096, -maxSteps, maxSteps);
   
   // Apply dead zone around center
   if (abs(targetPos) < deadZone) {
