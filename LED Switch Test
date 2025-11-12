@@ -1,0 +1,25 @@
+#define red_LED 2
+#define green_LED 3
+#define switch_pin 9
+
+void setup() {
+ pinMode(red_LED, OUTPUT);
+ pinMode(green_LED, OUTPUT);
+ pinMode(switch_pin, INPUT);
+}
+
+void loop() {
+
+int switch_state = digitalRead(switch_pin);
+
+ if (switch_state == HIGH){
+    digitalWrite(green_LED, HIGH);
+    digitalWrite(red_LED, LOW);
+  	delay(15);
+  }
+ else {
+   	digitalWrite(red_LED, HIGH);
+    digitalWrite(green_LED, LOW);
+  	delay(15);
+  }
+}
