@@ -21,8 +21,8 @@ digitalWrite(DIR_PIN, HIGH); // Set intial direction to clockwise
 void loop() {
 
 int position = analogRead(pot_Pin);
-// Map pot to position range: -maxSteps to +maxSteps
-  // Center position (~2048) = 0 steps
+// Map potentiometer to position range for stepper motor: -maxSteps to +maxSteps
+  // Center position = 0 steps
   targetPos = map(position, 0, 4096, -maxSteps, maxSteps);
   
   // Apply dead zone around center
