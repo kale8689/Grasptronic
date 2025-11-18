@@ -1,4 +1,4 @@
- 
+ // use ESP32 Dev Module
   ////// SOFTWARE PROTOTYPE START /////////
 
 // Potentiometer-controlled Stepper Motor with Switch and LEDs
@@ -13,15 +13,15 @@
 #define potPin 34                // Potentiometer input
 
 // Configuration for Software Prototype
-const int stepsPerRevolution = 200;  // Corresponds to 1.8 degrees per step
-const int maxSteps = 400;        // Maximum steps from center position
-const int deadZone = 25;         // Dead zone around center (reduce if motor doesn't respond at edges)
-const int stepDelay = 800;       // Microseconds between steps (speed control)
-const int threshold_Impedance =  0.1;  // Impedance value that differentiates needle from tissue/suture/mesh
-String material = "";         // Variable that will change based on impedance reading
-
+const int stepsPerRevolution = 100;  // Corresponds to 1.8 degrees per step
+const int maxSteps = 1800;        // Maximum steps from center position
+const int deadZone = 200;         // Dead zone around center (reduce if motor doesn't respond at edges)
+const int stepDelay = 400;       // Microseconds between steps (speed control)
 int currentPos = 0;              // Current motor position
 int targetPos = 0;               // Target position from pot
+unsigned long lastStepMicros = 0;
+const int stepsPerBurst = 50;    // how many steps we attempt per loop
+const int minStepDelay = 200;    // clamp if you later speed up
 
   ////// SOFTWARE PROTOTYPE END /////////
 
@@ -33,7 +33,6 @@ int targetPos = 0;               // Target position from pot
 */
 #include <Wire.h>
 #include "AD5933.h"
-
 #define START_FREQ  (10000)   // Start frequency in Hz
 #define FREQ_INCR   (2000)    // Frequency increment in Hz
 #define NUM_INCR    (50)      // Number of increments
@@ -41,165 +40,51 @@ int targetPos = 0;               // Target position from pot
 // Put your known resistor value here (ohms)
 const double KNOWN_RESISTOR_OHMS = 10.0;
 
+// Timer for impedance measurements
+unsigned long lastMeas = 0;
+const unsigned long measPeriodMs = 5000; // every 5s
 
 double gain[NUM_INCR+1];  // What is this?
 int phaseArr[NUM_INCR+1]; // What is this?
 
-void measureUnknown(){
-    delay(5000); // pause between measurements
+
+// Calibrate gain[] using KNOWN_RESISTOR_OHMS
+void calibrateWithKnownResistor() {
+  Serial.println("Starting calibration sweep...");
+
+
+  int real[NUM_INCR+1], imag[NUM_INCR+1];
+
+
+  // Use the library sweep to get raw data with known resistor
+  if (!AD5933::frequencySweep(real, imag, NUM_INCR+1)) {
+    Serial.println("Calibration sweep failed!");
+    return;
   }
 
 
-  // Calibrate gain[] using KNOWN_RESISTOR_OHMS
-    void calibrateWithKnownResistor(){
-      Serial.println("Starting calibration sweep...");
-
-
-      int real[NUM_INCR+1], imag[NUM_INCR+1];
-
-
-      // Use the library sweep to get raw data with known resistor
-      if (!AD5933::frequencySweep(real, imag, NUM_INCR+1)) {
-        Serial.println("Calibration sweep failed!");
-        return;
-      }
-
-
-    for (int i = 0; i <= NUM_INCR; i++) {
-      double magnitude = sqrt((double)real[i] * real[i] + (double)imag[i] * imag[i]);
-      if (magnitude == 0.0) {
-        gain[i] = 0.0;
-        Serial.print("Freq ");
-        Serial.print(START_FREQ + i * FREQ_INCR);
-        Serial.println(" Hz: magnitude=0 -> gain=0 (bad)");
-      } else {
-        gain[i] = 1.0 / (magnitude * KNOWN_RESISTOR_OHMS);
-        Serial.print("Freq ");
-        Serial.print(START_FREQ + i * FREQ_INCR);
-        Serial.print(" Hz: mag=");
-        Serial.print(magnitude, 6);
-        Serial.print(" -> gain=");
-        Serial.println(gain[i], 12);
-      }
+  for (int i = 0; i <= NUM_INCR; i++) {
+    double magnitude = sqrt((double)real[i] * real[i] + (double)imag[i] * imag[i]);
+    if (magnitude == 0.0) {
+      gain[i] = 0.0;
+      Serial.print("Freq ");
+      Serial.print(START_FREQ + i * FREQ_INCR);
+      Serial.println(" Hz: magnitude=0 -> gain=0 (bad)");
+    } else {
+      gain[i] = 1.0 / (magnitude * KNOWN_RESISTOR_OHMS);
+      Serial.print("Freq ");
+      Serial.print(START_FREQ + i * FREQ_INCR);
+      Serial.print(" Hz: mag=");
+      Serial.print(magnitude, 6);
+      Serial.print(" -> gain=");
+      Serial.println(gain[i], 12);
     }
   }
-
-
-  ////// ELECTRICAL PROTOTYPE END /////////
-
-void setup() {
-
-  ////// SOFTWARE PROTOTYPE START /////////
-  Serial.begin(115200);
-  pinMode(red_LED, OUTPUT);
-  pinMode(green_LED, OUTPUT);
-  pinMode(switch_pin, INPUT);
-  pinMode(step_pin, OUTPUT);
-  pinMode(dir_pin, OUTPUT);
-
-  ////// SOFTWARE PROTOTYPE END /////////
-
-  ////// ELECTRICAL PROTOTYPE START /////////
- Wire.begin();
-  Serial.begin(115200);
-  while (!Serial) ; // wait for Serial on some boards
-  Serial.println();
-  Serial.println("AD5933 Auto-calibrate + Measure");
-  Serial.println("Make sure known resistor is connected between VOUT and VIN.");
-  Serial.print("Known resistor (ohms): ");
-  Serial.println(KNOWN_RESISTOR_OHMS, 6);
-
-
-  // AD5933 configuration
-  if (!(AD5933::reset() &&
-        AD5933::setInternalClock(true) &&
-        AD5933::setStartFrequency(START_FREQ) &&
-        AD5933::setIncrementFrequency(FREQ_INCR) &&
-        AD5933::setNumberIncrements(NUM_INCR) &&
-        AD5933::setPGAGain(PGA_GAIN_X1)))
-  {
-    Serial.println("Initialization failed!");
-    while (true);
-  }
-
-  // Wait for user to confirm they have the known resistor connected
-  Serial.println("\nPress ENTER to start calibration with the known resistor...");
-  while (Serial.available() == 0) { delay(10); }
-  while (Serial.available() > 0) Serial.read(); // clear
-
-
-  void calibrateWithKnownResistor();
-  Serial.println("\nCalibration complete. Now measure unknowns. Sweeps start in 2s...");
-  delay(2000);
 }
 
-  ////// ELECTRICAL PROTOTYPE END /////////
 
-
-
-void loop() {
-
-  ////// SOFTWARE PROTOTYPE START /////////
-
-  // Read switch state and update LEDs
-  int switch_state = digitalRead(switch_pin);
-  
-  // Read potentiometer (0-4095 on ESP32)
-  int position = analogRead(potPin);
-  
-  // Map pot to position range: 0 to maxSteps*2
-  // Fully counter-clockwise (0) = 0 steps
-  // Fully clockwise (4095) = 800 steps (maxSteps*2)
-  targetPos = map(position, 0, 4095, 0, maxSteps * 2);
-  
-
- // Mechanical switch utilized to change between modes
-    if (switch_state == HIGH) {
-    digitalWrite(green_LED, HIGH); // Illuminate green LED to indicate Automatic Grasping Force Mode
-    digitalWrite(red_LED, LOW);    // Turn off red LED
-
-    // Calculate steps needed
-    int stepsToMove = targetPos - currentPos;
-  
-  // Only move if there's a difference
-  if (stepsToMove != 0) {
-    // Set direction
-    if (stepsToMove > 0) {
-      digitalWrite(dir_pin, HIGH);  // Clockwise
-    } else {
-      digitalWrite(dir_pin, LOW);   // Counter-clockwise
-      stepsToMove = -stepsToMove;   // Make positive for loop
-    }
-    
-    // Move one step toward target
-    digitalWrite(step_pin, HIGH);
-    delayMicroseconds(stepDelay);
-    digitalWrite(step_pin, LOW);
-    delayMicroseconds(stepDelay);
-    
-    // Update current position
-    if (targetPos > currentPos) {
-      currentPos++;
-    } else {
-      currentPos--;
-    }
-
-  } else {
-    digitalWrite(red_LED, HIGH); // Illuminate red LED to indicate Unlimited mode
-    digitalWrite(green_LED, LOW);
-  }
-  
-  
-  }
-  
-  delay(1);  // Small delay for stability
-
-  ////// SOFTWARE PROTOTYPE END /////////
-
-  ////// ELECTRICAL PROTOTYPE START /////////
-
- // Measure unknown using computed gain[]
-  void measureUnknown();
+// Measure unknown using computed gain[]
+void measureUnknown() {
   Serial.println("\nStarting measurement sweep on unknown...");
 
 
@@ -242,11 +127,131 @@ void loop() {
 
 
   Serial.println("Measurement sweep complete!");
+  delay(5000);
+}
 
 
+  ////// ELECTRICAL PROTOTYPE END /////////
+
+void setup() {
+
+  ////// SOFTWARE PROTOTYPE START /////////
+  pinMode(red_LED, OUTPUT);
+  pinMode(green_LED, OUTPUT);
+  pinMode(switch_pin, INPUT);
+  pinMode(step_pin, OUTPUT);
+  pinMode(dir_pin, OUTPUT);
+  digitalWrite(dir_pin, HIGH); // Set intial direction to clockwise
+  analogReadResolution(12);
+  analogSetPinAttenuation(potPin, ADC_11db);
+
+  ////// SOFTWARE PROTOTYPE END /////////
+
+  ////// ELECTRICAL PROTOTYPE START /////////
+ Wire.begin();
+  Serial.begin(115200);
+  while (!Serial) ; // wait for Serial on some boards
+  Serial.println();
+  Serial.println("AD5933 Auto-calibrate + Measure");
+  Serial.println("Make sure known resistor is connected between VOUT and VIN.");
+  Serial.print("Known resistor (ohms): ");
+  Serial.println(KNOWN_RESISTOR_OHMS, 6);
+
+
+  // AD5933 configuration
+  if (!(AD5933::reset() &&
+        AD5933::setInternalClock(true) &&
+        AD5933::setStartFrequency(START_FREQ) &&
+        AD5933::setIncrementFrequency(FREQ_INCR) &&
+        AD5933::setNumberIncrements(NUM_INCR) &&
+        AD5933::setPGAGain(PGA_GAIN_X1)))
+  {
+    Serial.println("Initialization failed!");
+    while (true);
+  }
+
+  // Wait for user to confirm they have the known resistor connected
+  Serial.println("\nPress ENTER to start calibration with the known resistor...");
+  while (Serial.available() == 0) { delay(10); }
+  while (Serial.available() > 0) Serial.read(); // clear
+  
+  calibrateWithKnownResistor();
+  Serial.println("\nCalibration complete. Now measure unknowns. Sweeps start in 2s...");
+  delay(2000);
+
+  ////// ELECTRICAL PROTOTYPE END /////////
 
 }
-////// ELECTRICAL PROTOTYPE END /////////
 
+void loop() {
 
+  ////// SOFTWARE PROTOTYPE START /////////
+
+  // Read switch state and update LEDs
+  int switch_state = digitalRead(switch_pin);
+  
+  // Read potentiometer (0-4095 on ESP32)
+  int position = analogRead(potPin);
+  
+  // Map pot to position range: 0 to maxSteps*2
+  // Fully counter-clockwise (0) = 0 steps
+  // Fully clockwise (4095) = 800 steps (maxSteps*2)
+  targetPos = map(position, 0, 4095, -maxSteps, maxSteps);
+  
+
+ // Mechanical switch utilized to change between modes
+    if (switch_state == HIGH) {
+    digitalWrite(green_LED, HIGH); // Illuminate green LED to indicate Automatic Grasping Force Mode
+    digitalWrite(red_LED, LOW);    // Turn off red LED
+    } else if (switch_state == LOW) {
+    digitalWrite(green_LED, LOW); // Illuminate green LED to indicate Automatic Grasping Force Mode
+    digitalWrite(red_LED, HIGH);
+    }
+    // Calculate steps needed
+  // Apply dead zone around center
+  if (abs(targetPos) < deadZone) {
+    targetPos = 0;
+  }
+  
+  // Calculate steps needed
+  int stepsToMove = targetPos - currentPos;
+  
+  // Only move if there's a difference
+  if (stepsToMove != 0) {
+    // Set direction
+    bool dir = (stepsToMove > 0);  // Clockwise (rotation check)
+      if (dir) {
+        digitalWrite(dir_pin, HIGH); }
+      else {
+        digitalWrite(dir_pin, LOW);
+      }
+    
+    int burst = min(stepsPerBurst, abs(stepsToMove));
+    for (int i = 0; i < burst; ++i){
+      // Move one step toward target
+      digitalWrite(step_pin, HIGH);
+      delayMicroseconds(stepDelay);
+      digitalWrite(step_pin, LOW);
+      delayMicroseconds(stepDelay);
+
+      if (dir) {
+        currentPos += 1;
+      } else {
+        currentPos -= 1;
+      }
+    
+    }
+  }
+
+  ////// SOFTWARE PROTOTYPE END /////////
+
+  ////// ELECTRICAL PROTOTYPE START /////////
+      unsigned long now = millis();
+    if (now - lastMeas >= measPeriodMs) {
+      lastMeas = now;
+      measureUnknown();   // this still blocks, but only every 5 s
+    }
+  ////// ELECTRICAL PROTOTYPE END /////////
+ 
+}
 
