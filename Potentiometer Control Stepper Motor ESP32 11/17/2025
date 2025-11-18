@@ -1,0 +1,55 @@
+#define DIR_PIN 17
+#define STEP_PIN 16
+#define pot_Pin 34
+
+const int maxSteps = 1800;       // +/- motion limit
+const int deadZoneADC = 100;     // Dead zone in ADC units around center
+const int stepDelay = 600;       // Microseconds per step (speed)
+
+// Smoothing
+const float alpha = 0.1;         // Low-pass filter factor
+
+int currentPos = 0;
+int targetPos = 0;
+float filteredADC = 0;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(STEP_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+
+  filteredADC = analogRead(pot_Pin);  // Initialize filter
+}
+
+void loop() {
+    int raw = analogRead(pot_Pin);
+
+    // Smooth the pot reading
+    filteredADC = (alpha * raw) + (1 - alpha) * filteredADC;
+
+    // Map pot full CCW → 0 steps, full CW → maxSteps
+    targetPos = map((int)filteredADC, 0, 4095, 0, maxSteps);
+
+    // Compute difference
+    int diff = targetPos - currentPos;
+
+    if (diff != 0) {
+        // Choose direction
+        digitalWrite(DIR_PIN, diff > 0 ? HIGH : LOW);
+
+        // Step
+        digitalWrite(STEP_PIN, HIGH);
+        delayMicroseconds(stepDelay);
+        digitalWrite(STEP_PIN, LOW);
+        delayMicroseconds(stepDelay);
+
+        // Update current position
+        currentPos += (diff > 0 ? 1 : -1);
+    }
+
+    // Debug output
+    Serial.printf("RAW:%d  FILT:%d  Target:%d  Curr:%d\n",
+                  raw, (int)filteredADC, targetPos, currentPos);
+}
+
+
