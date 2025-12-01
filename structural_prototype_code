@@ -1,0 +1,218 @@
+#include <Wire.h>
+#include "AD5933.h"
+
+
+#define START_FREQ  (100)     // Start frequency in Hz
+#define FREQ_INCR   (2000)    // Frequency increment in Hz
+#define NUM_INCR    (50)      // Number of increments
+#define settlingtime  (25)    // Settling time
+#define DIR_PIN 17            // Motor Direction pin
+#define STEP_PIN 16           // Motor step pin
+#define pot_Pin 34            // Potentiometer
+#define switch_pin 32         // Switch input for proof of concept mode toggling
+#define red 19                // Red LED illuminate for Unlimited Mode
+#define green 18              // Green LED illuminate for AGFM
+#define button 4              // button to start impedance sensing
+
+// Known resistor for calibration
+const double KNOWN_RESISTOR_OHMS = 1000.0;
+
+double gain[NUM_INCR+1];
+int phaseArr[NUM_INCR+1];
+
+// Stepper constants
+const int maxSteps = 1800;
+const int deadZoneADC = 100;
+const int stepDelay = 600;   // microseconds between steps
+const float alpha = 0.1;     // Pot smoothing filter
+
+// Stepper state-machine variables
+unsigned long lastStepTime = 0;
+int stepsRemaining = 0;
+int stepDirection = 1;
+
+// Position variables
+int currentPos = 0;
+int targetPos = 0;
+float filteredADC = 0;
+
+AD5933 ad5933;
+
+// State machine stepper
+void updateStepper() {
+ unsigned long now = micros();
+
+ if (stepsRemaining == 0) return;
+ if (now - lastStepTime >= stepDelay) {
+   lastStepTime = now;
+
+   // Set direction
+   digitalWrite(DIR_PIN, (stepDirection > 0) ? HIGH : LOW);
+
+   // One step pulse
+   digitalWrite(STEP_PIN, HIGH);
+   digitalWrite(STEP_PIN, LOW);
+
+   // Update current position
+   currentPos += stepDirection;
+   stepsRemaining--;
+ }
+}
+
+// impedance sensing calibration
+void calibrateWithKnownResistor() {
+ Serial.println("Starting calibration sweep...");
+
+ int real[NUM_INCR+1], imag[NUM_INCR+1];
+
+ if (!ad5933.frequencySweep(real, imag, NUM_INCR+1)) {
+   Serial.println("Calibration sweep failed");
+   return;
+ }
+
+ for (int i = 0; i <= NUM_INCR; i++) {
+   double magnitude = sqrt((double)real[i] * real[i] + (double)imag[i] * imag[i]);
+
+   if (magnitude == 0.0) {
+     gain[i] = 0.0;
+     Serial.print("Freq ");
+     Serial.print(START_FREQ + i * FREQ_INCR);
+     Serial.println(" Hz: magnitude=0 -> gain=0 (bad)");
+   } else {
+     gain[i] = 1.0 / (magnitude * KNOWN_RESISTOR_OHMS);
+     Serial.print("Freq ");
+     Serial.print(START_FREQ + i * FREQ_INCR);
+     Serial.print(" Hz: mag=");
+     Serial.print(magnitude, 6);
+     Serial.print(" -> gain=");
+     Serial.println(gain[i], 12);
+   }
+ }
+}
+
+// impedance sensing function
+void measureUnknown() {
+ Serial.println("\nStarting measurement sweep on unknown...");
+
+ int real[NUM_INCR+1], imag[NUM_INCR+1];
+
+ if (!ad5933.frequencySweep(real, imag, NUM_INCR+1)) {
+   Serial.println("Frequency sweep failed...");
+   return;
+ }
+
+ double Zmax = 0.0;
+ int freq = START_FREQ;
+
+ Serial.println("Z_ohms");   // Header for Serial Plotter (one column = one line)
+
+ for (int i = 0; i <= NUM_INCR; i++, freq += FREQ_INCR) {
+
+   Serial.print(freq);
+   Serial.print(" Hz: R=");
+   Serial.print(real[i]);
+   Serial.print(" I=");
+   Serial.print(imag[i]);
+
+   double magnitude = sqrt((double)real[i] * real[i] + (double)imag[i] * imag[i]);
+   double Z = (gain[i] > 0.0) ? 1.0 / (magnitude * gain[i]) : NAN;
+   double phase_deg = atan2((double)imag[i], (double)real[i]) * 180.0 / PI;
+
+   Serial.print(" |Z|=");
+   if (isnan(Z)) Serial.print("NaN");
+   else Serial.print(Z, 6);
+   Serial.print(" ohms, Phase=");
+   Serial.println(phase_deg, 2);
+
+   // for serial plotter
+   if (!isnan(Z)) {
+     Serial.println(Z, 6);   // << Only Z printed → ONE LINE on the plotter
+     if (Z > Zmax) Zmax = Z;
+   }
+ }
+
+ Serial.print("\nIMPEDANCE = ");
+ Serial.print(Zmax, 6);
+ Serial.println(" ohms");
+ Serial.println("Measurement sweep complete!");
+}
+
+void setup() {
+ Wire.begin();
+ Serial.begin(115200);
+
+ pinMode(STEP_PIN, OUTPUT);
+ pinMode(DIR_PIN, OUTPUT);
+ pinMode(switch_pin, INPUT);
+ pinMode(red, OUTPUT);
+ pinMode(green, OUTPUT);
+ pinMode(button, INPUT_PULLUP);
+ filteredADC = analogRead(pot_Pin);
+
+ Serial.println();
+ Serial.println("AD5933 Auto-calibrate + Measure");
+ Serial.print("Known resistor (ohms): ");
+ Serial.println(KNOWN_RESISTOR_OHMS, 6);
+
+ if (!(ad5933.reset() &&
+       ad5933.setInternalClock(true) &&
+       ad5933.setStartFrequency(START_FREQ) &&
+       ad5933.setIncrementFrequency(FREQ_INCR) &&
+       ad5933.setNumberIncrements(NUM_INCR) &&
+       ad5933.setPGAGain(PGA_GAIN_X1) &&
+       ad5933.setSettlingCycles(settlingtime)))
+ {
+   Serial.println("Initialization failed!");
+   while (true);
+ }
+
+ Serial.println("\nPress ENTER to start calibration with known resistor...");
+ while (Serial.available() == 0) { delay(10); }
+ while (Serial.available() > 0) Serial.read();
+
+ calibrateWithKnownResistor();
+ Serial.println("\nCalibration complete.");
+ currentPos = map((int)filteredADC, 0, 4095, 0, maxSteps);
+ delay(2000);
+}
+
+void loop() {
+ int switch_state = digitalRead(switch_pin);
+ bool pressed = (digitalRead(button) == LOW);
+
+ if (pressed) {
+   measureUnknown();
+ }
+
+  // Mechanical switch utilized to change between modes
+ if (switch_state == HIGH) {
+ digitalWrite(green, HIGH); // Illuminate green LED to indicate Automatic Grasping Force Mode
+ digitalWrite(red, LOW);    // Turn off red LED
+ } else if (switch_state == LOW) {
+ digitalWrite(green, LOW); // Illuminate green LED to indicate Automatic Grasping Force Mode
+ digitalWrite(red, HIGH);
+ }
+
+ // potentiometer smoothing
+ int raw = analogRead(pot_Pin);
+ filteredADC = (alpha * raw) + (1 - alpha) * filteredADC;
+
+ // Map pot → target position
+// Normalize 0 → 1
+float x = filteredADC / 4095.0;
+
+// Apply soft curve (exponent 0.5 = gentle damping)
+float scaled = pow(x, 0.3);
+
+// Convert to motor steps, inverted so higher pot angle = less movement
+targetPos = (int)(maxSteps * (scaled));
+
+ // schedule steps
+ int diff = targetPos - currentPos;
+
+ if (diff != 0 && stepsRemaining == 0) {
+   stepDirection = (diff > 0) ? +1 : -1;
+   stepsRemaining = abs(diff);
+ }
+ updateStepper();
+}
