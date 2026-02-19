@@ -1,0 +1,91 @@
+// citation: https://github.com/madhephaestus/ESP32Servo
+
+#include <ESP32Servo.h>  // Library for writing PWM waves to linear actuator in microseconds
+Servo myServo;
+// Motor control pins 
+int pot_pin = 32;
+int motor_pin = 14;
+
+// Current sensor pins 
+int current_pin = 34;
+// Constants for calculating current from voltage
+const float adc_ref = 3.3;
+const float adc_res = 4095.0;
+const float divider_ratio = 0.666;
+const float acs_sensitivity = 0.185; // ACS712-05A (Possibly adjust this sensitivity based on ACS712)
+float zero_voltage = 0;
+
+
+void setup() {
+  // put your setup code here, to run once:
+Serial.begin(9600);
+
+// Motor control (potentiometer is input at pin 14 and motor_pin is output at 32)
+pinMode (pot_pin, INPUT) ;
+myServo.attach(motor_pin);
+
+// Calibrate zero-current voltage for current sensor
+  delay(2000); // sensor warmup
+  zero_voltage = calibrateZero(current_pin, 500);
+  Serial.print("Zero-current sensor voltage: ");
+  Serial.println(zero_voltage, 4);
+
+  Serial.println("Potentiometer, Current (A)"); // header for Serial Plotter
+}
+
+
+void loop() {
+// Read voltage at pot_pin and map potentiometer positions of 0-4095 to motor PWM waves of 900-2100
+int pot_value = analogRead(pot_pin);
+Serial.println(pot_value);
+int motor_position = map(pot_value, 0, 4095, 900, 2100); 
+myServo.writeMicroseconds(motor_position);
+// Add delay to account for 50% duty cycle (still need to do)
+delay(1000);
+
+
+// Read ACS712 
+float current = readCurrent();
+
+// Print real-time data to Serial Monitor
+Serial.print(pot_value);
+Serial.print(", "); 
+Serial.print(current, 2); 
+ 
+// =========================
+// Human-readable Serial Monitor output
+// =========================
+Serial.print("Potentiometer: ");
+Serial.print(pot_value);
+Serial.print("  | Current (A): ");
+Serial.print(current, 2);
+
+}
+
+// ==========================
+// Helper Functions
+// ==========================
+
+// Calibrate zero-current voltage
+float calibrateZero(int pin, int samples) {
+  float sum = 0;
+  for (int i = 0; i < samples; i++) {
+    sum += analogRead(pin);
+    delay(2);
+  }
+  float avg_adc = sum / samples;
+  return (avg_adc * (adc_ref / adc_res)) / divider_ratio;
+}
+
+// Read ACS712 current in amps
+float readCurrent() {
+  float sum = 0;
+  for (int i = 0; i < 150; i++) {
+    sum += analogRead(current_pin);
+    delay(2);
+  }
+  float avg_adc = sum / 150.0;
+  float voltage_sensor = (avg_adc * (adc_ref / adc_res)) / divider_ratio;
+  float current = (voltage_sensor - zero_voltage) / acs_sensitivity;
+  return current;
+}
