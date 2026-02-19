@@ -1,0 +1,35 @@
+#include <math.h>
+double voltage = 0;
+double current = 0;
+double raw = 0;
+double vZero = 1.65; //3.3/2=1.65
+// 3.3V sensitivity is 100mV *(3.3/5)=66mV or 0.066V/A
+double sensitivity = 0.066;
+double sum = 0;
+void setup() {
+Serial.begin(9600);
+}
+
+
+void loop() {
+sum = 0;
+for(int i=0; i<100; i++){
+raw = analogRead(A0);
+sum += raw;
+delay(5);
+}
+sum /= 100;
+// serial print reads from 0 to 1023 so to convert as ACS712 3.3V input
+// i used an arduino nano, but use 4095 for ESP32
+voltage = sum*(3.3/1023);
+// current equation 
+current = (voltage - vZero)/sensitivity;
+current = fabs(current);
+Serial.print("Voltage: ");
+Serial.print(voltage);
+Serial.print("  Current: ");
+Serial.println(current,5);
+
+
+delay(500);
+}
