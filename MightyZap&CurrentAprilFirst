@@ -3,7 +3,9 @@
 double voltage = 0;
 double current = 0;
 double raw = 0;
-double vZero = 1.55;
+// calibrate this value with specific motor, can range between 1.45-1.55
+// how to calibrate is to only have idle current, idle current should range from 0-60mA
+double vZero = 1.50;
 double sensitivity = 0.264;
 double sum = 0;
 
