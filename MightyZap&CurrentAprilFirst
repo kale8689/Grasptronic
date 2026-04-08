@@ -30,8 +30,8 @@ RotaryEncoder encoder(CLK, DT);
 
 
 // 900 - 2100 full extention
-const int MIN_PULSE = 900; // extend longer (1325)
-const int MAX_PULSE = 2100; // extend shorter (1175)
+const int MIN_PULSE = 1325; // extend longer (1325)
+const int MAX_PULSE = 1175; // extend shorter (1175)
 
 
 
