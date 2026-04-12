@@ -36,6 +36,19 @@ const double Kf = 0.11;
 const double b = -10.576;
 double force = 0;
 
+// MATERIAL CURRENT LIMIT
+// set with impedance
+void setupCurrentLimit() {
+  switch (activeMaterial) {
+    case sutureNeedle:   current_limit = 224.56; break;
+    case drySuture:      current_limit = 219.83; break;
+    case salineSuture:   current_limit = 219.83; break;
+    case dryMesh:        current_limit = 224.56; break;
+    case salineMesh:     current_limit = 216.01; break;
+    case tissue:          current_limit = 213.38; break;
+  }
+}
+
 // function that tells motor to move when rotary pin knob moves
 void onTurned(int value) {
   if (value < MIN_POS) value = MIN_POS;
@@ -55,8 +68,8 @@ void setup() {
   // knows servo is on
   myServo.attach(motor_pin);
 
-  // Set time manually, only use for clock functions
-  setTime(2, 40, 0, 12, 3, 2026);
+  // current limit function
+  setupCurrentLimit();
 
   // turns the encoder on
   encoder.onTurned(onTurned);
@@ -79,14 +92,18 @@ void loop() {
 
     // ACS725 SAMPLING
     sum = 0;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 50; i++) {
       raw = analogRead(25);
       sum += raw;
     }
-    sum /= 100;
+    sum /= 50;
     voltage = sum * (3.3 / 4095);
     current = fabs((voltage - vZero) / sensitivity) * 1000;
-    force = (Kf*current) + b;
+    double cappedCurrent = current;
+    if (cappedCurrent > 227.83) {
+      cappedCurrent = 227.83; 
+    }
+    force = (Kf*cappedCurrent) + b - 111.69;
 
    // CURRENT LIMIT LOGIC
     if (current > CURRENT_LIMIT) {
@@ -99,44 +116,17 @@ void loop() {
       myServo.writeMicroseconds(pulse);
     }
 
-    /*
+    
     Serial.print("Current (mA): ");
     Serial.print(current, 3);
     Serial.print(" Encoder Value: ");
     Serial.print(encoderValue);
-    Serial.print(" Force: ");
-    Serial.println(overCurrentTrip ? "MAXED" : "OK");
+    Serial.print(" Force Value: "); // this in LCD screen
+    Serial.print(encoderValue); // this in LCD screen
+    Serial.print(" Force Regulation: "); // this in LCD screen
+    Serial.println(overCurrentTrip ? "ADJUSTED" : "OK"); // this in LCD screen
     Serial.print(voltage, 3);
-    */
-    
-    // Putty Serial Monitor Output Best For Excel
-    printTimeWithMillis();
-    Serial.print(",");
-    Serial.print(current, 3);
-    Serial.print(",");
-    Serial.print(force);
-    Serial.print(",");
-    Serial.println(encoderValue);
     
   }
 }
 
-// Clock Functions printTimeWithMillis, printDigits
-void printTimeWithMillis() {
-  printDigits(hour());
-  Serial.print(":");
-  printDigits(minute());
-  Serial.print(":");
-  printDigits(second());
-  Serial.print(".");
-  // Milliseconds (000–999)
-  int ms = millis() % 1000;
-  if (ms < 100) Serial.print("0");
-  if (ms < 10) Serial.print("0");
-  Serial.print(ms);
-}
-
-void printDigits(int digits) {
-  if (digits < 10) Serial.print('0');
-  Serial.print(digits);
-}
