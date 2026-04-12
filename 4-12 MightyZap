@@ -71,9 +71,6 @@ void setup() {
   // current limit function
   setupCurrentLimit();
 
-  // Set time manually, only use for clock functions
-  setTime(2, 40, 0, 12, 3, 2026);
-
   // turns the encoder on
   encoder.onTurned(onTurned);
   encoder.setEncoderType(EncoderType::HAS_PULLUP);
@@ -102,7 +99,11 @@ void loop() {
     sum /= 50;
     voltage = sum * (3.3 / 4095);
     current = fabs((voltage - vZero) / sensitivity) * 1000;
-    force = (Kf*current) + b;
+    double cappedCurrent = current;
+    if (cappedCurrent > 227.83) {
+      cappedCurrent = 227.83; 
+    }
+    force = (Kf*cappedCurrent) + b - 111.69;
 
    // CURRENT LIMIT LOGIC
     if (current > CURRENT_LIMIT) {
