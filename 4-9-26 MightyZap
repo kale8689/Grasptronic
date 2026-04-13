@@ -1,18 +1,26 @@
-// ACS725 (Current Sensor)
+// ACS725
 #include <math.h>
 double voltage = 0;
 double current = 0;
 double raw = 0;
-double vZero = 1.50; // Modify this value for ACS725 calibration
+double vZero = 1.5;
 double sensitivity = 0.264;
 double sum = 0;
 
-// Clock Functions
+
+
+
 #include <TimeLib.h>
 
-// MightyZap (Linear Actuator)
+
+
+
+// MightyZap
 #include <ESP32Servo.h>
 #include <ESP32RotaryEncoder.h>
+
+
+
 
 Servo myServo;
 int CLK = 25;
@@ -20,24 +28,22 @@ int DT = 26;
 int motor_pin = 5;
 RotaryEncoder encoder(CLK, DT);
 
+
 // 900 - 2100 full extention
 const int MIN_PULSE = 1270; // extend longer (1325)
 const int MAX_PULSE = 1200; // extend shorter (1175)
+
+
+
+
 const int MIN_POS = 0;
-const int MAX_POS = 20; // rotary pin 0-20
+const int MAX_POS = 20;
 int encoderValue = 10;
 
-// CURRENT LIMIT SETTINGS 
-const float CURRENT_LIMIT = 30000.0;
-bool overCurrentTrip = false;   
 
-// FORCE MEASUREMENT SETTINGS
-const double Kf = 0.11;
-const double b = -10.576;
-double force = 0;
-
-// MATERIAL CURRENT LIMIT
-// set with impedance
+// --- CURRENT LIMIT SETTINGS ---
+const float CURRENT_LIMIT = 300.0;
+bool overCurrentTrip = false;      
 
 
 // function that tells motor to move when rotary pin knob moves
@@ -52,12 +58,27 @@ void onTurned(int value) {
   myServo.writeMicroseconds(pulse);
 }
 
+
+
+
+
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
+
   // knows servo is on
   myServo.attach(motor_pin);
+
+
+
+
+  // Set time manually, only use for clock functions
+  //setTime(2, 40, 0, 12, 3, 2026);
+
+
+
 
   // turns the encoder on
   encoder.onTurned(onTurned);
@@ -66,17 +87,33 @@ void setup() {
   encoder.begin();
 }
 
+
+
+
 // Timing for 0.1s sampling
 unsigned long lastSample = 0;
 const unsigned long sampleInterval = 100; // 100 ms
 
+
+
+
 void loop() {
+
+
   // encoder tells MightyZap what to do
   encoder.loop();
+
+
+
 
   unsigned long now = millis();
   if (now - lastSample >= sampleInterval) {
     lastSample = now;
+
+
+
+
+
 
     // ACS725 SAMPLING
     sum = 0;
@@ -87,11 +124,11 @@ void loop() {
     sum /= 50;
     voltage = sum * (3.3 / 4095);
     current = fabs((voltage - vZero) / sensitivity) * 1000;
-    double cappedCurrent = current;
-    if (cappedCurrent > 227.83) {
-      cappedCurrent = 227.83; 
-    }
-    force = (Kf*cappedCurrent) + b - 111.69;
+
+
+
+
+
 
    // CURRENT LIMIT LOGIC
     if (current > CURRENT_LIMIT) {
@@ -104,16 +141,56 @@ void loop() {
       myServo.writeMicroseconds(pulse);
     }
 
-    
+
+
+
     Serial.print("Current (mA): ");
     Serial.print(current, 3);
     Serial.print(" Encoder Value: ");
     Serial.print(encoderValue);
-    Serial.print(" Force Value: "); // this in LCD screen
-    Serial.print(encoderValue); // this in LCD screen
-    Serial.print(" Force Regulation: "); // this in LCD screen
-    Serial.println(overCurrentTrip ? "ADJUSTED" : "OK"); // this in LCD screen
-    Serial.print(voltage, 3);
-    
+    Serial.print(" Force: ");
+    Serial.print(overCurrentTrip ? "MAXED" : "OK");
+    Serial.println(voltage, 3);
+
+    /*
+    Putty Serial Monitor Output Best For Excel
+    printTimeWithMillis();
+    Serial.print(",");
+    Serial.print(current, 3);
+    Serial.print(",");
+    Serial.println(encoderValue);
+    */
+
+
+   
   }
+ 
+}
+
+
+// Clock Functions printTimeWithMillis, printDigits
+void printTimeWithMillis() {
+  printDigits(hour());
+  Serial.print(":");
+  printDigits(minute());
+  Serial.print(":");
+  printDigits(second());
+  Serial.print(".");
+
+
+
+
+  // Milliseconds (000–999)
+  int ms = millis() % 1000;
+  if (ms < 100) Serial.print("0");
+  if (ms < 10) Serial.print("0");
+  Serial.print(ms);
+}
+
+
+
+
+void printDigits(int digits) {
+  if (digits < 10) Serial.print('0');
+  Serial.print(digits);
 }
