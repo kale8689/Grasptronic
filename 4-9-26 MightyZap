@@ -15,9 +15,9 @@ double sum = 0;
 #include <ESP32RotaryEncoder.h>
 
 Servo myServo;
-int CLK = 18;
-int DT = 19;
-int motor_pin = 14;
+int CLK = 25;
+int DT = 26;
+int motor_pin = 5;
 RotaryEncoder encoder(CLK, DT);
 
 // 900 - 2100 full extention
@@ -38,16 +38,7 @@ double force = 0;
 
 // MATERIAL CURRENT LIMIT
 // set with impedance
-void setupCurrentLimit() {
-  switch (activeMaterial) {
-    case sutureNeedle:   current_limit = 224.56; break;
-    case drySuture:      current_limit = 219.83; break;
-    case salineSuture:   current_limit = 219.83; break;
-    case dryMesh:        current_limit = 224.56; break;
-    case salineMesh:     current_limit = 216.01; break;
-    case tissue:          current_limit = 213.38; break;
-  }
-}
+
 
 // function that tells motor to move when rotary pin knob moves
 void onTurned(int value) {
@@ -67,9 +58,6 @@ void setup() {
 
   // knows servo is on
   myServo.attach(motor_pin);
-
-  // current limit function
-  setupCurrentLimit();
 
   // turns the encoder on
   encoder.onTurned(onTurned);
@@ -93,7 +81,7 @@ void loop() {
     // ACS725 SAMPLING
     sum = 0;
     for (int i = 0; i < 50; i++) {
-      raw = analogRead(25);
+      raw = analogRead(34);
       sum += raw;
     }
     sum /= 50;
