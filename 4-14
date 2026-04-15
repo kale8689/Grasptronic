@@ -42,8 +42,8 @@ RotaryEncoder encoder(CLK, DT);
 
 // 900 - 2100 full extention
 // upload code at jaws closed
-const int MIN_PULSE = 1170; // (originally 2000 but made shorter)
-const int MAX_PULSE = 1260; // (originally 1270 but made shorter)
+const int MIN_PULSE = 2000; // (originally 2000 but made shorter) (edited to 1170)
+const int MAX_PULSE = 1270; // (originally 1270 but made shorter) (edited to 1260)
 int pulse = 1235;
 
 // Function that cause 3 us change in PWM per click on encoder
