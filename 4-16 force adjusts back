@@ -37,6 +37,7 @@ double vZero = 1.565; // Modify this value for ACS725 calibration
 // for second pcb vZero = 1.565
 double sensitivity = 0.264;
 double sum = 0;
+double current_old = 0;
 
 // Rotary Pin and Motor Pin Outputs
 Servo myServo;
@@ -46,9 +47,9 @@ int motor_pin = 14;
 RotaryEncoder encoder(CLK, DT);
 
 // 900 - 2100 full extention
-const int MIN_PULSE = 1100; // extend longer (1270 - original)
+const int MIN_PULSE = 1050; // extend longer (1270 - original)
 const int MAX_PULSE = 1250; // extend shorter (1200 - original)
-const int MIN_POS = -40;
+const int MIN_POS = -60;
 const int MAX_POS = 20; // rotary pin 0-20
 int encoderValue = 0;
 
@@ -59,7 +60,7 @@ double force = 0;
 
 // Timing for 0.1s sampling
 unsigned long lastSample = 0;
-const unsigned long sampleInterval = 100; // 100 ms
+const unsigned long sampleInterval = 400; // 100 ms
 
 //LCD pins
 LiquidCrystal lcd(26, 27, 32, 33, 12, 13);
@@ -283,7 +284,7 @@ encoder.loop();
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Calibration Complete.");
-    delay(5000);
+    delay(2000);
     //lcd.print('Press ENTER to measure sample.');
     return;
   }
@@ -319,7 +320,7 @@ encoder.loop();
     current = fabs((voltage - vZero) / sensitivity) * 1000;
     
     // Force Calculations
-        double cappedCurrent = current;
+        double cappedCurrent = current_old;
     if (cappedCurrent >= 227.83) {
       cappedCurrent = 227.83; 
     }
@@ -352,28 +353,32 @@ encoder.loop();
     //Current Limits Based on Material
     double limit;
     if (activeMaterial == "Needle") {
-      limit = 224.56;
+      //limit = 100;
+      //limit = 219.83;
     }
     else if (activeMaterial == "Soaked Mesh") {
-      limit = 219.83;
+      limit = 100;
+      //limit = 219.83;
     }
     else if (activeMaterial == "Tissue") {
       limit = 213.38;
+      //limit = 100;
     }
     else if (activeMaterial == "Dry Mesh/Suture") {
       limit = 224.56;
+      //limit = 100;
     }
     else {
-      limit = 9999; // safe default for No Contact
+      limit = 1400; // safe default for No Contact
     }
 
     //Adjusting feature 
     int pulse = map(encoderValue, MIN_POS, MAX_POS, MIN_PULSE, MAX_PULSE);
-    if (current > limit) {
+    if (current_old > limit) {
       overCurrentTrip = true;
       myServo.writeMicroseconds(0);   // STOP motor
       delay(500);
-      myServo.writeMicroseconds(pulse - 25); // moves back 25 PWM
+      myServo.writeMicroseconds(pulse - 50); // moves back 25 PWM
     } else {
       overCurrentTrip = false;
       myServo.writeMicroseconds(pulse);
@@ -390,14 +395,16 @@ encoder.loop();
 
     lcd.setCursor(0, 2);
     lcd.print("Current: "); 
-    lcd.print(current);
+    lcd.print(current_old);
     //lcd.print(encoderValue);
 
     lcd.setCursor(0, 3);
     lcd.print("Force: "); 
-    lcd.print(overCurrentTrip ? "ADJUSTED" : "OK");
+    lcd.print(overCurrentTrip ? "ADJUSTED  " : "OK  ");
     //lcd.print(encoderValue);
+    lcd.print(pulse);
     //lcd.print(voltage);
     }
+    current_old = current;
     }
    
