@@ -45,7 +45,7 @@ const int MIN_PULSE = 1000; // extend longer (1270 - original)
 const int MAX_PULSE = 1250; // extend shorter (1200 - original)
 const int MIN_POS = 0;
 const int MAX_POS = 40; // rotary pin 0-20
-int encoderValue = 20;
+int encoderValue = 40;
 
 // FORCE MEASUREMENT SETTINGS
 const double Kf = 0.11;
