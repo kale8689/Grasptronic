@@ -118,9 +118,11 @@ void adjustingForce() {
     int pulse = map(encoderValue, MIN_POS, MAX_POS, MIN_PULSE, MAX_PULSE);
     if (current_old > limit) {
       overCurrentTrip = true;
-      myServo.writeMicroseconds(pulse - 25); // moves back 25 PWM
-      delay(500);
-      overCurrentTrip = false;
+      myServo.writeMicroseconds(0);
+      delay(200);
+      // 2. Back off slightly, but clamp to safe range
+      myServo.writeMicroseconds(pulse - 50);
+      delay(300);
     } else {
       overCurrentTrip = false;
       myServo.writeMicroseconds(pulse);
@@ -380,7 +382,7 @@ encoder.loop();
     else if (avgZ >= 50.1 && avgZ <= 120.0) {
       activeMaterial = "Tissue";
     }
-    else if (avgZ >= 146000.0 && avgZ <= 150000.0) {
+    else if (avgZ >= 135000.0 && avgZ <= 151000.0) {
       activeMaterial = "Dry Mesh/Suture";
     }
     else {
@@ -396,6 +398,7 @@ encoder.loop();
         delay(50);              // simple debounce
     }
     lastButtonState = buttonState;
+    current_old = current;
     // Adjusting Function
     if (autoMode) {
       adjustingForce();
@@ -420,6 +423,6 @@ encoder.loop();
     lcd.print("Current: "); 
     lcd.print(current);
     }
-    current_old = current;
+
     }
    
